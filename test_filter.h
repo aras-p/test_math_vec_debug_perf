@@ -3,23 +3,28 @@
 #include <stdio.h>
 #include <chrono>
 
-static float4 load_pixel(const uchar4* src, int size, int x, int y)
+#ifdef USE_NAMESPACE
+namespace USE_NAMESPACE {
+#endif
+
+inline float4 load_pixel(const uint8_t* src, int size, int x, int y)
 {
 	x &= size - 1;
 	y &= size - 1;
-	float4 pix = float4(src[y * size + x]) * (1.0f / 255.0f);
+	uchar4 bpix(src + (y * size + x) * 4);
+	float4 pix = float4(bpix) * (1.0f / 255.0f);
 	return pix;
 }
 
-static void store_pixel(uchar4* dst, int size, int x, int y, float4 pix)
+inline void store_pixel(uint8_t* dst, int size, int x, int y, float4 pix)
 {
 	pix = math_max(pix, float4(0.0f));
 	pix = math_min(pix, float4(1.0f));
 	pix = math_round(pix * 255.0f);
-	dst[y * size + x] = uchar4(pix);
+	((uchar4*)dst)[y * size + x] = uchar4(pix);
 }
 
-static float filter_image(int size, const uchar4* src, uchar4* dst)
+float filter_image(int size, const uint8_t* src, uint8_t* dst)
 {
 	auto t0 = std::chrono::high_resolution_clock::now();
 	const int kFilter = 5;
@@ -49,3 +54,7 @@ static float filter_image(int size, const uchar4* src, uchar4* dst)
 	std::chrono::duration<float, std::milli> dt = t1 - t0;
 	return dt.count();
 }
+
+#ifdef USE_NAMESPACE
+} // namespace
+#endif

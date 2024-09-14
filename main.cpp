@@ -1,8 +1,29 @@
 
-#include "test_math_vector.h"
-#include "test_filter.h"
 #include <stdio.h>
 #include <chrono>
+
+#define USE_NAMESPACE test_assert_unroll
+#define USE_ASSERTS
+#include "test_filter.h"
+#undef USE_NAMESPACE
+
+#define USE_NAMESPACE test_noassert_unroll
+#undef USE_ASSERTS
+#include "test_filter.h"
+#undef USE_NAMESPACE
+
+#define USE_NAMESPACE test_assert_loop
+#define USE_LOOP_INSTEAD_OF_UNROLL
+#define USE_ASSERTS
+#include "test_filter.h"
+#undef USE_NAMESPACE
+
+#define USE_NAMESPACE test_noassert_loop
+#define USE_LOOP_INSTEAD_OF_UNROLL
+#undef USE_ASSERTS
+#include "test_filter.h"
+#undef USE_NAMESPACE
+
 
 void test_do_assert_msg(const char* file, int line, const char* function, const char* msg)
 {
@@ -33,28 +54,39 @@ static void WriteTga(const char* path, int width, int height, const uint32_t* da
 
 int main()
 {
-	const int kSize = 512;
-	uchar4* src_image = new uchar4[kSize * kSize];
-	uchar4* dst_image = new uchar4[kSize * kSize];
+	const int kSize = 256;
+	uint8_t* src_image = new uint8_t[kSize * kSize * 4];
 	int idx = 0;
 	for (int y = 0; y < kSize; y++)
 	{
 		for (int x = 0; x < kSize; x++)
 		{
-			uchar4 pix;
-			pix.x = (x * 3) ^ (y * 3);
-			pix.y = x ^ y;
-			pix.z = (x * 7) ^ (y * 7);
-			pix.w = 255;
-			src_image[idx++] = pix;
+			src_image[idx + 0] = (x * 3) ^ (y * 3);
+			src_image[idx + 1] = x ^ y;
+			src_image[idx + 2] = (x * 7) ^ (y * 7);
+			src_image[idx + 3] = 255;
+			idx += 4;
 		}
 	}
-	float dt = filter_image(kSize, src_image, dst_image);
-	printf("Time taken: %.1f ms\n", dt);
+	uint8_t* dst_image1 = new uint8_t[kSize * kSize * 4];
+	uint8_t* dst_image2 = new uint8_t[kSize * kSize * 4];
+	uint8_t* dst_image3 = new uint8_t[kSize * kSize * 4];
+	uint8_t* dst_image4 = new uint8_t[kSize * kSize * 4];
+	float dt1 = test_assert_unroll::filter_image(kSize, src_image, dst_image1);
+	float dt2 = test_noassert_unroll::filter_image(kSize, src_image, dst_image2);
+	float dt3 = test_assert_loop::filter_image(kSize, src_image, dst_image3);
+	float dt4 = test_noassert_loop::filter_image(kSize, src_image, dst_image4);
+	printf("Time taken: %.1f %.1f %.1f %.1f ms\n", dt1, dt2, dt3, dt4);
 	WriteTga("out-input.tga", kSize, kSize, (const uint32_t*)src_image);
-	WriteTga("out-output.tga", kSize, kSize, (const uint32_t*)dst_image);
+	WriteTga("out-output1.tga", kSize, kSize, (const uint32_t*)dst_image1);
+	WriteTga("out-output2.tga", kSize, kSize, (const uint32_t*)dst_image2);
+	WriteTga("out-output3.tga", kSize, kSize, (const uint32_t*)dst_image3);
+	WriteTga("out-output4.tga", kSize, kSize, (const uint32_t*)dst_image4);
 	delete[] src_image;
-	delete[] dst_image;
+	delete[] dst_image1;
+	delete[] dst_image2;
+	delete[] dst_image3;
+	delete[] dst_image4;
 
 	return 0;
 }
