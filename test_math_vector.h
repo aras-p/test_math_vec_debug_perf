@@ -16,6 +16,7 @@
 // USE_NAMESPACE: wrap everything into given namespace
 // USE_ASSERTS: enable asserts
 // USE_LOOP_INSTEAD_OF_UNROLL: use a simple loop instead of unroll<>
+// USE_EXPLICIT_XYZW: use explicit xyzw accessors instead of loop/unroll
 
 // --------------------------------------------------------------------------
 // Assertion utility
@@ -65,6 +66,15 @@ namespace USE_NAMESPACE {
 
         explicit VecBase(T value)
         {
+#ifdef USE_EXPLICIT_XYZW
+            if constexpr (Size == 4) {
+                this->x = value;
+                this->y = value;
+                this->z = value;
+                this->w = value;
+                return;
+            }
+#endif
             for (int i = 0; i < Size; i++) {
                 (*this)[i] = value;
             }
@@ -72,14 +82,31 @@ namespace USE_NAMESPACE {
         template<typename std::enable_if_t<(Size == 4)>* = nullptr>
         VecBase(T _x, T _y, T _z, T _w)
         {
+#ifdef USE_EXPLICIT_XYZW
             this->x = _x;
             this->y = _y;
             this->z = _z;
             this->w = _w;
+#else
+            (*this)[0] = _x;
+            (*this)[1] = _y;
+            (*this)[2] = _z;
+            (*this)[3] = _w;
+#endif
         }
 
         VecBase(const T* ptr)
         {
+#ifdef USE_EXPLICIT_XYZW
+            if constexpr (Size == 4) {
+                this->x = ptr[0];
+                this->y = ptr[1];
+                this->z = ptr[2];
+                this->w = ptr[3];
+                return;
+            }
+#endif
+
 #ifndef USE_LOOP_INSTEAD_OF_UNROLL
             unroll<Size>([&](auto i) { (*this)[i] = ptr[i]; });
 #else
@@ -89,6 +116,15 @@ namespace USE_NAMESPACE {
 
         template<typename U> explicit VecBase(const VecBase<U, Size>& vec)
         {
+#ifdef USE_EXPLICIT_XYZW
+            if constexpr (Size == 4) {
+                this->x = T(vec.x);
+                this->y = T(vec.y);
+                this->z = T(vec.z);
+                this->w = T(vec.w);
+                return;
+            }
+#endif
 #ifndef USE_LOOP_INSTEAD_OF_UNROLL
             unroll<Size>([&](auto i) { (*this)[i] = T(vec[i]); });
 #else
@@ -112,6 +148,11 @@ namespace USE_NAMESPACE {
 
         friend VecBase operator+(const VecBase& a, const VecBase& b)
         {
+#ifdef USE_EXPLICIT_XYZW
+            if constexpr (Size == 4) {
+                return VecBase(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
+            }
+#endif
             VecBase result;
 #ifndef USE_LOOP_INSTEAD_OF_UNROLL
             unroll<Size>([&](auto i) { result[i] = a[i] + b[i]; });
@@ -123,6 +164,16 @@ namespace USE_NAMESPACE {
 
         VecBase& operator+=(const VecBase& b)
         {
+#ifdef USE_EXPLICIT_XYZW
+            if constexpr (Size == 4) {
+                this->x += b.x;
+                this->y += b.y;
+                this->z += b.z;
+                this->w += b.w;
+                return *this;
+            }
+#endif
+
 #ifndef USE_LOOP_INSTEAD_OF_UNROLL
             unroll<Size>([&](auto i) { (*this)[i] += b[i]; });
 #else
@@ -133,6 +184,11 @@ namespace USE_NAMESPACE {
 
         template<typename FactorT> friend VecBase operator*(const VecBase& a, FactorT b)
         {
+#ifdef USE_EXPLICIT_XYZW
+            if constexpr (Size == 4) {
+                return VecBase(a.x * b, a.y * b, a.z * b, a.w * b);
+            }
+#endif
             VecBase result;
 #ifndef USE_LOOP_INSTEAD_OF_UNROLL
             unroll<Size>([&](auto i) { result[i] = a[i] * b; });
@@ -144,6 +200,16 @@ namespace USE_NAMESPACE {
 
         VecBase& operator*=(T b)
         {
+#ifdef USE_EXPLICIT_XYZW
+            if constexpr (Size == 4) {
+                this->x *= b;
+                this->y *= b;
+                this->z *= b;
+                this->w *= b;
+                return *this;
+            }
+#endif
+
 #ifndef USE_LOOP_INSTEAD_OF_UNROLL
             unroll<Size>([&](auto i) { (*this)[i] *= b; });
 #else
@@ -163,6 +229,11 @@ namespace USE_NAMESPACE {
     template<typename T, int Size>
     [[nodiscard]] inline VecBase<T, Size> math_min(const VecBase<T, Size>& a, const VecBase<T, Size>& b)
     {
+#ifdef USE_EXPLICIT_XYZW
+        if constexpr (Size == 4) {
+            return VecBase<T, Size>(std::min(a.x, b.x), std::min(a.y, b.y), std::min(a.z, b.z), std::min(a.w, b.w));
+        }
+#endif
         VecBase<T, Size> result;
         for (int i = 0; i < Size; i++) {
             result[i] = a[i] < b[i] ? a[i] : b[i];
@@ -173,6 +244,11 @@ namespace USE_NAMESPACE {
     template<typename T, int Size>
     [[nodiscard]] inline VecBase<T, Size> math_max(const VecBase<T, Size>& a, const VecBase<T, Size>& b)
     {
+#ifdef USE_EXPLICIT_XYZW
+        if constexpr (Size == 4) {
+            return VecBase<T, Size>(std::max(a.x, b.x), std::max(a.y, b.y), std::max(a.z, b.z), std::max(a.w, b.w));
+        }
+#endif
         VecBase<T, Size> result;
         for (int i = 0; i < Size; i++) {
             result[i] = a[i] > b[i] ? a[i] : b[i];
@@ -183,6 +259,11 @@ namespace USE_NAMESPACE {
     template<typename T, int Size>
     [[nodiscard]] inline VecBase<T, Size> math_round(const VecBase<T, Size>& a)
     {
+#ifdef USE_EXPLICIT_XYZW
+        if constexpr (Size == 4) {
+            return VecBase<T, Size>(std::round(a.x), std::round(a.y), std::round(a.z), std::round(a.w));
+        }
+#endif
         VecBase<T, Size> result;
         for (int i = 0; i < Size; i++) {
             result[i] = std::round(a[i]);
