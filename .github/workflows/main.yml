@@ -1,0 +1,43 @@
+name: build_and_test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v1
+    - name: Windows VS2022
+      run: |
+        call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat" && cl.exe main.cpp /std:c++17 /O2 /link /out:out_vs_o2.exe
+      shell: cmd
+
+  mac:
+    runs-on: macos-14
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v1
+    - name: macOS Clang
+      run: |
+        clang main.cpp -std=c++17 -msse4.2 -lstdc++ -lm -o out_clang_og -Og
+
+  linux:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v1
+    - name: Ubuntu22 Gcc and Clang
+      run: |
+        gcc main.cpp -std=c++17 -msse4.2 -lstdc++ -lm -o out_gcc_og -Og
+        clang main.cpp -std=c++17 -msse4.2 -lstdc++ -lm -o out_clang_og -Og
