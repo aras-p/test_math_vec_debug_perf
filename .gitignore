@@ -1,2 +1,4 @@
 ﻿.vs/*
 /out/
+/out-*.tga
+/out_*

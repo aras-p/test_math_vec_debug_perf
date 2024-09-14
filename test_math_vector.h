@@ -24,7 +24,7 @@
 void test_do_assert_msg(const char* file, int line, const char* function, const char* msg);
 
 #ifdef USE_ASSERTS
-#	define test_assert(a) (void)((!(a)) ? test_do_assert_msg(__FILE__, __LINE__, __FUNCTION__, #a) : 0)
+#	define test_assert(a) (void)((!(a)) ? (test_do_assert_msg(__FILE__, __LINE__, __FUNCTION__, #a), 0) : 0)
 #else
 #   define test_assert(a) ((void)0)
 #endif
