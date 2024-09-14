@@ -77,97 +77,13 @@ namespace USE_NAMESPACE {
     {
         VecBase() = default;
 
-        explicit inline VecBase(T value)
-        {
-#ifdef USE_SIMD_SSE
-            if constexpr (std::is_same_v<T, float> && Size == 4) {
-                this->simd = _mm_set1_ps(value);
-                return;
-            }
-#endif
-#ifdef USE_EXPLICIT_XYZW
-            if constexpr (Size == 4) {
-                this->x = value;
-                this->y = value;
-                this->z = value;
-                this->w = value;
-                return;
-            }
-#endif
-            for (int i = 0; i < Size; i++) {
-                (*this)[i] = value;
-            }
-        }
-        template<typename std::enable_if_t<(Size == 4)>* = nullptr>
-        inline VecBase(T _x, T _y, T _z, T _w)
-        {
-#ifdef USE_SIMD_SSE
-            if constexpr (std::is_same_v<T, float> && Size == 4) {
-                this->simd = _mm_set_ps(_w, _z, _y, _x);
-                return;
-            }
-#endif
-#ifdef USE_EXPLICIT_XYZW
-            this->x = _x;
-            this->y = _y;
-            this->z = _z;
-            this->w = _w;
-#else
-            (*this)[0] = _x;
-            (*this)[1] = _y;
-            (*this)[2] = _z;
-            (*this)[3] = _w;
-#endif
-        }
+        explicit VecBase(T value);
 
-        inline VecBase(const T* ptr)
-        {
-#ifdef USE_SIMD_SSE
-            if constexpr (std::is_same_v<T, float> && Size == 4) {
-                this->simd = _mm_loadu_ps(ptr);
-                return;
-            }
-#endif
-#ifdef USE_EXPLICIT_XYZW
-            if constexpr (Size == 4) {
-                this->x = ptr[0];
-                this->y = ptr[1];
-                this->z = ptr[2];
-                this->w = ptr[3];
-                return;
-            }
-#endif
+        VecBase(T _x, T _y, T _z, T _w);
 
-#ifndef USE_LOOP_INSTEAD_OF_UNROLL
-            unroll<Size>([&](auto i) { (*this)[i] = ptr[i]; });
-#else
-            for (int i = 0; i < Size; i++) { (*this)[i] = ptr[i]; }
-#endif
-        }
+        VecBase(const T* ptr);
 
-        template<typename U> explicit inline VecBase(const VecBase<U, Size>& vec)
-        {
-#ifdef USE_SIMD_SSE
-            if constexpr (std::is_same_v<T, float> && Size == 4) {
-                this->simd = _mm_set_ps(float(vec.w), float(vec.z), float(vec.y), float(vec.x));
-                return;
-            }
-#endif
-#ifdef USE_EXPLICIT_XYZW
-            if constexpr (Size == 4) {
-                this->x = T(vec.x);
-                this->y = T(vec.y);
-                this->z = T(vec.z);
-                this->w = T(vec.w);
-                return;
-            }
-#endif
-#ifndef USE_LOOP_INSTEAD_OF_UNROLL
-            unroll<Size>([&](auto i) { (*this)[i] = T(vec[i]); });
-#else
-            for (int i = 0; i < Size; i++) { (*this)[i] = T(vec[i]); }
-#endif
-        }
+        template<typename U> explicit VecBase(const VecBase<U, Size>& vec);
 
         inline const T& operator[](int index) const
         {
@@ -183,104 +99,210 @@ namespace USE_NAMESPACE {
             return reinterpret_cast<T*>(this)[index];
         }
 
-        friend inline VecBase operator+(const VecBase& a, const VecBase& b)
-        {
-#ifdef USE_SIMD_SSE
-            if constexpr (std::is_same_v<T, float> && Size == 4) {
-                VecBase r;
-                r.simd = _mm_add_ps(a.simd, b.simd);
-                return r;
-            }
-#endif
-#ifdef USE_EXPLICIT_XYZW
-            if constexpr (Size == 4) {
-                return VecBase(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
-            }
-#endif
-            VecBase result;
-#ifndef USE_LOOP_INSTEAD_OF_UNROLL
-            unroll<Size>([&](auto i) { result[i] = a[i] + b[i]; });
-#else
-            for (int i = 0; i < Size; i++) { result[i] = a[i] + b[i]; }
-#endif
-            return result;
-        }
+        VecBase& operator+=(const VecBase& b);
 
-        inline VecBase& operator+=(const VecBase& b)
-        {
-#ifdef USE_SIMD_SSE
-            if constexpr (std::is_same_v<T, float> && Size == 4) {
-                this->simd = _mm_add_ps(this->simd, b.simd);
-                return *this;
-            }
-#endif
-#ifdef USE_EXPLICIT_XYZW
-            if constexpr (Size == 4) {
-                this->x += b.x;
-                this->y += b.y;
-                this->z += b.z;
-                this->w += b.w;
-                return *this;
-            }
-#endif
-
-#ifndef USE_LOOP_INSTEAD_OF_UNROLL
-            unroll<Size>([&](auto i) { (*this)[i] += b[i]; });
-#else
-            for (int i = 0; i < Size; i++) { (*this)[i] += b[i]; }
-#endif
-            return *this;
-        }
-
-        template<typename FactorT> friend inline VecBase operator*(const VecBase& a, FactorT b)
-        {
-#ifdef USE_SIMD_SSE
-            if constexpr (std::is_same_v<T, float> && Size == 4) {
-                VecBase r;
-                r.simd = _mm_mul_ps(a.simd, _mm_set1_ps(b));
-                return r;
-            }
-#endif
-#ifdef USE_EXPLICIT_XYZW
-            if constexpr (Size == 4) {
-                return VecBase(a.x * b, a.y * b, a.z * b, a.w * b);
-            }
-#endif
-            VecBase result;
-#ifndef USE_LOOP_INSTEAD_OF_UNROLL
-            unroll<Size>([&](auto i) { result[i] = a[i] * b; });
-#else
-            for (int i = 0; i < Size; i++) { result[i] = a[i] * b; }
-#endif
-            return result;
-        }
-
-        inline VecBase& operator*=(T b)
-        {
-#ifdef USE_SIMD_SSE
-            if constexpr (std::is_same_v<T, float> && Size == 4) {
-                this->simd = _mm_mul_ps(this->simd, _mm_set1_ps(b));
-                return *this;
-            }
-#endif
-#ifdef USE_EXPLICIT_XYZW
-            if constexpr (Size == 4) {
-                this->x *= b;
-                this->y *= b;
-                this->z *= b;
-                this->w *= b;
-                return *this;
-            }
-#endif
-
-#ifndef USE_LOOP_INSTEAD_OF_UNROLL
-            unroll<Size>([&](auto i) { (*this)[i] *= b; });
-#else
-            for (int i = 0; i < Size; i++) { (*this)[i] *= b; }
-#endif
-            return *this;
-        }
+        VecBase& operator*=(T b);
     };
+
+    template<typename T, int Size>
+    inline VecBase<T, Size>::VecBase(T value)
+    {
+#ifdef USE_SIMD_SSE
+        if constexpr (std::is_same_v<T, float> && Size == 4) {
+            this->simd = _mm_set1_ps(value);
+            return;
+        }
+#endif
+#ifdef USE_EXPLICIT_XYZW
+        if constexpr (Size == 4) {
+            this->x = value;
+            this->y = value;
+            this->z = value;
+            this->w = value;
+            return;
+        }
+#endif
+        for (int i = 0; i < Size; i++) {
+            (*this)[i] = value;
+        }
+    }
+
+    template<typename T, int Size>
+    inline VecBase<T, Size>::VecBase(T _x, T _y, T _z, T _w)
+    {
+#ifdef USE_SIMD_SSE
+        if constexpr (std::is_same_v<T, float> && Size == 4) {
+            this->simd = _mm_set_ps(_w, _z, _y, _x);
+            return;
+        }
+#endif
+#ifdef USE_EXPLICIT_XYZW
+        this->x = _x;
+        this->y = _y;
+        this->z = _z;
+        this->w = _w;
+#else
+        (*this)[0] = _x;
+        (*this)[1] = _y;
+        (*this)[2] = _z;
+        (*this)[3] = _w;
+#endif
+    }
+
+    template<typename T, int Size>
+    inline VecBase<T, Size>::VecBase(const T* ptr)
+    {
+#ifdef USE_SIMD_SSE
+        if constexpr (std::is_same_v<T, float> && Size == 4) {
+            this->simd = _mm_loadu_ps(ptr);
+            return;
+        }
+#endif
+#ifdef USE_EXPLICIT_XYZW
+        if constexpr (Size == 4) {
+            this->x = ptr[0];
+            this->y = ptr[1];
+            this->z = ptr[2];
+            this->w = ptr[3];
+            return;
+        }
+#endif
+
+#ifndef USE_LOOP_INSTEAD_OF_UNROLL
+        unroll<Size>([&](auto i) { (*this)[i] = ptr[i]; });
+#else
+        for (int i = 0; i < Size; i++) { (*this)[i] = ptr[i]; }
+#endif
+    }
+
+    template<typename T, int Size>
+    template<typename U>
+    inline VecBase<T, Size>::VecBase(const VecBase<U, Size>& vec)
+    {
+#ifdef USE_SIMD_SSE
+        if constexpr (std::is_same_v<T, float> && Size == 4) {
+            this->simd = _mm_set_ps(float(vec.w), float(vec.z), float(vec.y), float(vec.x));
+            return;
+        }
+#endif
+#ifdef USE_EXPLICIT_XYZW
+        if constexpr (Size == 4) {
+            this->x = T(vec.x);
+            this->y = T(vec.y);
+            this->z = T(vec.z);
+            this->w = T(vec.w);
+            return;
+        }
+#endif
+#ifndef USE_LOOP_INSTEAD_OF_UNROLL
+        unroll<Size>([&](auto i) { (*this)[i] = T(vec[i]); });
+#else
+        for (int i = 0; i < Size; i++) { (*this)[i] = T(vec[i]); }
+#endif
+    }
+
+    template<typename T, int Size>
+    inline VecBase<T, Size> operator+(const VecBase<T, Size>& a, const VecBase<T, Size>& b)
+    {
+#ifdef USE_SIMD_SSE
+        if constexpr (std::is_same_v<T, float> && Size == 4) {
+            VecBase<T, Size> r;
+            r.simd = _mm_add_ps(a.simd, b.simd);
+            return r;
+        }
+#endif
+#ifdef USE_EXPLICIT_XYZW
+        if constexpr (Size == 4) {
+            return VecBase<T, Size>(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
+        }
+#endif
+        VecBase<T, Size> result;
+#ifndef USE_LOOP_INSTEAD_OF_UNROLL
+        unroll<Size>([&](auto i) { result[i] = a[i] + b[i]; });
+#else
+        for (int i = 0; i < Size; i++) { result[i] = a[i] + b[i]; }
+#endif
+        return result;
+    }
+
+    template<typename T, int Size>
+    inline VecBase<T, Size>& VecBase<T, Size>::operator+=(const VecBase& b)
+    {
+#ifdef USE_SIMD_SSE
+        if constexpr (std::is_same_v<T, float> && Size == 4) {
+            this->simd = _mm_add_ps(this->simd, b.simd);
+            return *this;
+        }
+#endif
+#ifdef USE_EXPLICIT_XYZW
+        if constexpr (Size == 4) {
+            this->x += b.x;
+            this->y += b.y;
+            this->z += b.z;
+            this->w += b.w;
+            return *this;
+        }
+#endif
+
+#ifndef USE_LOOP_INSTEAD_OF_UNROLL
+        unroll<Size>([&](auto i) { (*this)[i] += b[i]; });
+#else
+        for (int i = 0; i < Size; i++) { (*this)[i] += b[i]; }
+#endif
+        return *this;
+    }
+
+    template<typename T, int Size, typename FactorT>
+    inline VecBase<T, Size> operator*(const VecBase<T, Size>& a, FactorT b)
+    {
+#ifdef USE_SIMD_SSE
+        if constexpr (std::is_same_v<T, float> && Size == 4) {
+            VecBase<T, Size> r;
+            r.simd = _mm_mul_ps(a.simd, _mm_set1_ps(b));
+            return r;
+        }
+#endif
+#ifdef USE_EXPLICIT_XYZW
+        if constexpr (Size == 4) {
+            return VecBase<T, Size>(a.x * b, a.y * b, a.z * b, a.w * b);
+        }
+#endif
+        VecBase<T, Size> result;
+#ifndef USE_LOOP_INSTEAD_OF_UNROLL
+        unroll<Size>([&](auto i) { result[i] = a[i] * b; });
+#else
+        for (int i = 0; i < Size; i++) { result[i] = a[i] * b; }
+#endif
+        return result;
+    }
+
+    template<typename T, int Size>
+    inline VecBase<T, Size>& VecBase<T, Size>::operator*=(T b)
+    {
+#ifdef USE_SIMD_SSE
+        if constexpr (std::is_same_v<T, float> && Size == 4) {
+            this->simd = _mm_mul_ps(this->simd, _mm_set1_ps(b));
+            return *this;
+        }
+#endif
+#ifdef USE_EXPLICIT_XYZW
+        if constexpr (Size == 4) {
+            this->x *= b;
+            this->y *= b;
+            this->z *= b;
+            this->w *= b;
+            return *this;
+        }
+#endif
+
+#ifndef USE_LOOP_INSTEAD_OF_UNROLL
+        unroll<Size>([&](auto i) { (*this)[i] *= b; });
+#else
+        for (int i = 0; i < Size; i++) { (*this)[i] *= b; }
+#endif
+        return *this;
+    }
+
 
     using uchar4 = VecBase<uint8_t, 4>;
     using float4 = VecBase<float, 4>;
