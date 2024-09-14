@@ -13,7 +13,7 @@ All of this on a PC with Ryzen 5950X CPU, Windows 10 and Linux via WSL.
 | Gcc Linux 11 O0       |           5942 |         4056 |        1467 |   265 |  1418 |
 | Gcc Linux 12 O0       |           5610 |         4068 |        1511 |   261 |  1409 |
 | VS2022 (v17.11.0) /Od |           7646 |         4339 |        1281 |   285 |  1603 |
-| VS2022 (v17.11.0) /Od /JMC |     17560 |         8446 |        3662 |   316 |  5594 |
+| VS2022 (v17.11.0) /Od /JMC |     17560 |         8446 |        3662 |   316 |  4657 |
 |                       |                |              |             |       |
 | Clang Linux 14 Og     |             74 |          875 |          75 |    68 |    53 |
 | Clang Linux 15 Og     |             73 |          884 |          76 |    67 |    53 |
