@@ -11,12 +11,22 @@
 #include <cstddef>
 #include <cstdint>
 #include <utility>
+#include <type_traits>
 
 // Macros controlling behavior:
 // USE_NAMESPACE: wrap everything into given namespace
 // USE_ASSERTS: enable asserts
 // USE_LOOP_INSTEAD_OF_UNROLL: use a simple loop instead of unroll<>
 // USE_EXPLICIT_XYZW: use explicit xyzw accessors instead of loop/unroll
+// USE_SIMD: use SSE for float4
+
+#ifdef USE_SIMD
+#if defined(__x86_64__) || defined(_M_X64) || defined(__SSE2__)
+#include <emmintrin.h>
+#include <smmintrin.h>
+#define USE_SIMD_SSE
+#endif
+#endif
 
 // --------------------------------------------------------------------------
 // Assertion utility
@@ -57,6 +67,9 @@ namespace USE_NAMESPACE {
     template<typename T> struct vec_struct_base<T, 2> { T x, y; };
     template<typename T> struct vec_struct_base<T, 3> { T x, y, z; };
     template<typename T> struct vec_struct_base<T, 4> { T x, y, z, w; };
+#ifdef USE_SIMD_SSE
+    template<> struct vec_struct_base<float, 4> { __m128 simd; };
+#endif
 
 
     template<typename T, int Size>
@@ -64,8 +77,14 @@ namespace USE_NAMESPACE {
     {
         VecBase() = default;
 
-        explicit VecBase(T value)
+        explicit inline VecBase(T value)
         {
+#ifdef USE_SIMD_SSE
+            if constexpr (std::is_same_v<T, float> && Size == 4) {
+                this->simd = _mm_set1_ps(value);
+                return;
+            }
+#endif
 #ifdef USE_EXPLICIT_XYZW
             if constexpr (Size == 4) {
                 this->x = value;
@@ -80,8 +99,14 @@ namespace USE_NAMESPACE {
             }
         }
         template<typename std::enable_if_t<(Size == 4)>* = nullptr>
-        VecBase(T _x, T _y, T _z, T _w)
+        inline VecBase(T _x, T _y, T _z, T _w)
         {
+#ifdef USE_SIMD_SSE
+            if constexpr (std::is_same_v<T, float> && Size == 4) {
+                this->simd = _mm_set_ps(_w, _z, _y, _x);
+                return;
+            }
+#endif
 #ifdef USE_EXPLICIT_XYZW
             this->x = _x;
             this->y = _y;
@@ -95,8 +120,14 @@ namespace USE_NAMESPACE {
 #endif
         }
 
-        VecBase(const T* ptr)
+        inline VecBase(const T* ptr)
         {
+#ifdef USE_SIMD_SSE
+            if constexpr (std::is_same_v<T, float> && Size == 4) {
+                this->simd = _mm_loadu_ps(ptr);
+                return;
+            }
+#endif
 #ifdef USE_EXPLICIT_XYZW
             if constexpr (Size == 4) {
                 this->x = ptr[0];
@@ -114,8 +145,14 @@ namespace USE_NAMESPACE {
 #endif
         }
 
-        template<typename U> explicit VecBase(const VecBase<U, Size>& vec)
+        template<typename U> explicit inline VecBase(const VecBase<U, Size>& vec)
         {
+#ifdef USE_SIMD_SSE
+            if constexpr (std::is_same_v<T, float> && Size == 4) {
+                this->simd = _mm_set_ps(float(vec.w), float(vec.z), float(vec.y), float(vec.x));
+                return;
+            }
+#endif
 #ifdef USE_EXPLICIT_XYZW
             if constexpr (Size == 4) {
                 this->x = T(vec.x);
@@ -132,22 +169,29 @@ namespace USE_NAMESPACE {
 #endif
         }
 
-        const T& operator[](int index) const
+        inline const T& operator[](int index) const
         {
             test_assert(index >= 0);
             test_assert(index < Size);
             return reinterpret_cast<const T*>(this)[index];
         }
 
-        T& operator[](int index)
+        inline T& operator[](int index)
         {
             test_assert(index >= 0);
             test_assert(index < Size);
             return reinterpret_cast<T*>(this)[index];
         }
 
-        friend VecBase operator+(const VecBase& a, const VecBase& b)
+        friend inline VecBase operator+(const VecBase& a, const VecBase& b)
         {
+#ifdef USE_SIMD_SSE
+            if constexpr (std::is_same_v<T, float> && Size == 4) {
+                VecBase r;
+                r.simd = _mm_add_ps(a.simd, b.simd);
+                return r;
+            }
+#endif
 #ifdef USE_EXPLICIT_XYZW
             if constexpr (Size == 4) {
                 return VecBase(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
@@ -162,8 +206,14 @@ namespace USE_NAMESPACE {
             return result;
         }
 
-        VecBase& operator+=(const VecBase& b)
+        inline VecBase& operator+=(const VecBase& b)
         {
+#ifdef USE_SIMD_SSE
+            if constexpr (std::is_same_v<T, float> && Size == 4) {
+                this->simd = _mm_add_ps(this->simd, b.simd);
+                return *this;
+            }
+#endif
 #ifdef USE_EXPLICIT_XYZW
             if constexpr (Size == 4) {
                 this->x += b.x;
@@ -182,8 +232,15 @@ namespace USE_NAMESPACE {
             return *this;
         }
 
-        template<typename FactorT> friend VecBase operator*(const VecBase& a, FactorT b)
+        template<typename FactorT> friend inline VecBase operator*(const VecBase& a, FactorT b)
         {
+#ifdef USE_SIMD_SSE
+            if constexpr (std::is_same_v<T, float> && Size == 4) {
+                VecBase r;
+                r.simd = _mm_mul_ps(a.simd, _mm_set1_ps(b));
+                return r;
+            }
+#endif
 #ifdef USE_EXPLICIT_XYZW
             if constexpr (Size == 4) {
                 return VecBase(a.x * b, a.y * b, a.z * b, a.w * b);
@@ -198,8 +255,14 @@ namespace USE_NAMESPACE {
             return result;
         }
 
-        VecBase& operator*=(T b)
+        inline VecBase& operator*=(T b)
         {
+#ifdef USE_SIMD_SSE
+            if constexpr (std::is_same_v<T, float> && Size == 4) {
+                this->simd = _mm_mul_ps(this->simd, _mm_set1_ps(b));
+                return *this;
+            }
+#endif
 #ifdef USE_EXPLICIT_XYZW
             if constexpr (Size == 4) {
                 this->x *= b;
@@ -229,6 +292,13 @@ namespace USE_NAMESPACE {
     template<typename T, int Size>
     [[nodiscard]] inline VecBase<T, Size> math_min(const VecBase<T, Size>& a, const VecBase<T, Size>& b)
     {
+#ifdef USE_SIMD_SSE
+        if constexpr (std::is_same_v<T, float> && Size == 4) {
+            float4 r;
+            r.simd = _mm_min_ps(a.simd, b.simd);
+            return r;
+        }
+#endif
 #ifdef USE_EXPLICIT_XYZW
         if constexpr (Size == 4) {
             return VecBase<T, Size>(std::min(a.x, b.x), std::min(a.y, b.y), std::min(a.z, b.z), std::min(a.w, b.w));
@@ -244,6 +314,13 @@ namespace USE_NAMESPACE {
     template<typename T, int Size>
     [[nodiscard]] inline VecBase<T, Size> math_max(const VecBase<T, Size>& a, const VecBase<T, Size>& b)
     {
+#ifdef USE_SIMD_SSE
+        if constexpr (std::is_same_v<T, float> && Size == 4) {
+            float4 r;
+            r.simd = _mm_max_ps(a.simd, b.simd);
+            return r;
+        }
+#endif
 #ifdef USE_EXPLICIT_XYZW
         if constexpr (Size == 4) {
             return VecBase<T, Size>(std::max(a.x, b.x), std::max(a.y, b.y), std::max(a.z, b.z), std::max(a.w, b.w));
@@ -259,6 +336,13 @@ namespace USE_NAMESPACE {
     template<typename T, int Size>
     [[nodiscard]] inline VecBase<T, Size> math_round(const VecBase<T, Size>& a)
     {
+#ifdef USE_SIMD_SSE
+        if constexpr (std::is_same_v<T, float> && Size == 4) {
+            float4 r;
+            r.simd = _mm_round_ps(a.simd, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            return r;
+        }
+#endif
 #ifdef USE_EXPLICIT_XYZW
         if constexpr (Size == 4) {
             return VecBase<T, Size>(std::round(a.x), std::round(a.y), std::round(a.z), std::round(a.w));

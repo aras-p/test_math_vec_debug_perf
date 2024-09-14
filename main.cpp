@@ -43,6 +43,13 @@
 #include "test_filter.h"
 #undef USE_NAMESPACE
 
+#define USE_NAMESPACE test_simd
+#undef USE_RAW_SCALAR_FILTER
+#undef USE_EXPLICIT_XYZW
+#define USE_SIMD
+#include "test_filter.h"
+#undef USE_NAMESPACE
+
 
 void test_do_assert_msg(const char* file, int line, const char* function, const char* msg)
 {
@@ -94,6 +101,7 @@ int main()
 	uint8_t* dst_image5 = new uint8_t[kSize * kSize * 4];
 	uint8_t* dst_image6 = new uint8_t[kSize * kSize * 4];
 	uint8_t* dst_image7 = new uint8_t[kSize * kSize * 4];
+	uint8_t* dst_image8 = new uint8_t[kSize * kSize * 4];
 	float dt1 = test_assert_unroll::filter_image(kSize, src_image, dst_image1);
 	float dt2 = test_noassert_unroll::filter_image(kSize, src_image, dst_image2);
 	float dt3 = test_assert_loop::filter_image(kSize, src_image, dst_image3);
@@ -101,9 +109,10 @@ int main()
 	float dt5 = test_assert_xyzw::filter_image(kSize, src_image, dst_image5);
 	float dt6 = test_noassert_xyzw::filter_image(kSize, src_image, dst_image6);
 	float dt7 = test_raw::filter_image(kSize, src_image, dst_image7);
-	printf("| Codegen | Unroll+Asserts | Unroll | Loop+Asserts | Loop   |Xyzw+Asserts |Xyzw   | Raw C |\n");
-	printf("|---------|---------------:|-------:|-------------:|-------:|------------:|------:|------:|\n");
-	printf("|         |           %.1f |   %.1f |         %.1f |   %.1f |        %.1f |  %.1f |  %.1f |\n", dt1, dt2, dt3, dt4, dt5, dt6, dt7);
+	float dt8 = test_simd::filter_image(kSize, src_image, dst_image8);
+	printf("| Codegen | Unroll+Asserts | Unroll | Loop+Asserts | Loop   |Xyzw+Asserts |Xyzw   | Raw C | SIMD |\n");
+	printf("|---------|---------------:|-------:|-------------:|-------:|------------:|------:|------:|-----:|\n");
+	printf("|         |           %.0f |   %.0f |         %.0f |   %.0f |        %.0f |  %.0f |  %.0f |  %.0f |\n", dt1, dt2, dt3, dt4, dt5, dt6, dt7, dt8);
 	WriteTga("out-input.tga", kSize, kSize, (const uint32_t*)src_image);
 	WriteTga("out-output1.tga", kSize, kSize, (const uint32_t*)dst_image1);
 	WriteTga("out-output2.tga", kSize, kSize, (const uint32_t*)dst_image2);
@@ -112,6 +121,7 @@ int main()
 	WriteTga("out-output5.tga", kSize, kSize, (const uint32_t*)dst_image5);
 	WriteTga("out-output6.tga", kSize, kSize, (const uint32_t*)dst_image6);
 	WriteTga("out-output7.tga", kSize, kSize, (const uint32_t*)dst_image7);
+	WriteTga("out-output8.tga", kSize, kSize, (const uint32_t*)dst_image8);
 	delete[] src_image;
 	delete[] dst_image1;
 	delete[] dst_image2;
@@ -120,6 +130,7 @@ int main()
 	delete[] dst_image5;
 	delete[] dst_image6;
 	delete[] dst_image7;
+	delete[] dst_image8;
 
 	return 0;
 }
