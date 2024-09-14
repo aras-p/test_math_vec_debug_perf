@@ -26,6 +26,10 @@
 #include <smmintrin.h>
 #define USE_SIMD_SSE
 #endif
+#if (defined(__aarch64__) || defined(_M_ARM64)) && defined(__ARM_NEON__)
+#include <arm_neon.h>
+#define USE_SIMD_NEON
+#endif
 #endif
 
 // --------------------------------------------------------------------------
@@ -69,6 +73,9 @@ namespace USE_NAMESPACE {
     template<typename T> struct vec_struct_base<T, 4> { T x, y, z, w; };
 #ifdef USE_SIMD_SSE
     template<> struct vec_struct_base<float, 4> { __m128 simd; };
+#endif
+#ifdef USE_SIMD_NEON
+    template<> struct vec_struct_base<float, 4> { float32x4_t simd; };
 #endif
 
 
@@ -164,6 +171,13 @@ namespace USE_NAMESPACE {
 #ifdef USE_SIMD_SSE
         if constexpr (std::is_same_v<T, float> && Size == 4) {
             this->simd = _mm_set_ps(float(vec.w), float(vec.z), float(vec.y), float(vec.x));
+            return;
+        }
+#endif
+#ifdef USE_SIMD_NEON
+        if constexpr (std::is_same_v<T, float> && Size == 4) {
+            alignas(16) float data[4] = {float(vec.x), float(vec.y), float(vec.z), float(vec.w)};
+            this->simd = vld1q_f32(data);
             return;
         }
 #endif
@@ -303,6 +317,50 @@ namespace USE_NAMESPACE {
     }
 #endif
 
+#ifdef USE_SIMD_NEON
+    template<>
+    inline VecBase<float, 4>::VecBase(float value)
+    {
+        this->simd = vdupq_n_f32(value);
+    }
+    template<>
+    inline VecBase<float, 4>::VecBase(float _x, float _y, float _z, float _w)
+    {
+        alignas(16) float data[4] = {_x, _y, _z, _w};
+        this->simd = vld1q_f32(data);
+    }
+    template<>
+    inline VecBase<float, 4>::VecBase(const float* ptr)
+    {
+        this->simd = vld1q_f32(ptr);
+    }
+    template<>
+    inline VecBase<float, 4> operator+(const VecBase<float, 4>& a, const VecBase<float, 4>& b)
+    {
+        VecBase<float, 4> r;
+        r.simd = vaddq_f32(a.simd, b.simd);
+        return r;
+    }
+    template<>
+    inline VecBase<float, 4>& VecBase<float, 4>::operator+=(const VecBase& b)
+    {
+        this->simd = vaddq_f32(this->simd, b.simd);
+        return *this;
+    }
+    template<>
+    inline VecBase<float, 4> operator*(const VecBase<float, 4>& a, float b)
+    {
+        VecBase<float, 4> r;
+        r.simd = vmulq_f32(a.simd, vdupq_n_f32(b));
+        return r;
+    }
+    template<>
+    inline VecBase<float, 4>& VecBase<float, 4>::operator*=(float b)
+    {
+        this->simd = vmulq_f32(this->simd, vdupq_n_f32(b));
+        return *this;
+    }
+#endif
 
     using uchar4 = VecBase<uint8_t, 4>;
     using float4 = VecBase<float, 4>;
@@ -373,6 +431,26 @@ namespace USE_NAMESPACE {
     {
         float4 r;
         r.simd = _mm_round_ps(a.simd, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+        return r;
+    }
+#endif
+#ifdef USE_SIMD_NEON
+    [[nodiscard]] inline float4 math_min(const float4& a, const float4& b)
+    {
+        float4 r;
+        r.simd = vminq_f32(a.simd, b.simd);
+        return r;
+    }
+    [[nodiscard]] inline float4 math_max(const float4& a, const float4& b)
+    {
+        float4 r;
+        r.simd = vmaxq_f32(a.simd, b.simd);
+        return r;
+    }
+    [[nodiscard]] inline float4 math_round(const float4& a)
+    {
+        float4 r;
+        r.simd = vrndnq_f32(a.simd);
         return r;
     }
 #endif
