@@ -1,6 +1,7 @@
 ## Results
 
-All of this on a PC with Ryzen 5950X CPU, Windows 10 and Linux via WSL.
+All of this on a PC with Ryzen 5950X CPU, Windows 10 and Linux via WSL. Times in milliseconds,
+lower is better.
 
 
 ### "Debug" build
