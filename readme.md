@@ -1,3 +1,6 @@
+
+Code for this **blog post**: https://aras-p.info/blog/2024/09/14/Vector-math-library-codegen-in-Debug/
+
 ## Results
 
 All of this on a PC with Ryzen 5950X CPU, Windows 10 and Linux via WSL. Times in milliseconds,
